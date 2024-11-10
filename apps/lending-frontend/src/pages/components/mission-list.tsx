@@ -1,6 +1,5 @@
 import {
   Box,
-  Button,
   Card,
   CardBody,
   CardHeader,
@@ -11,8 +10,6 @@ import {
   HStack,
   Badge,
 } from "@chakra-ui/react";
-import { useWeb3 } from "../../shared/contexts/web3-context";
-import { useState } from "react";
 import { MissionValidation } from "../../components/admin/mission-validation";
 import { useUser } from "../../shared/contexts/user-context";
 import { useMissions } from '../../hooks/useMissions';

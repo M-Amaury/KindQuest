@@ -1,70 +1,124 @@
 import { User } from '../shared/contexts/user-context';
 
-const STORAGE_PREFIX = 'kindquest_';
+export class UserService {
+  private static USERS_KEY = 'users';
+  private static CURRENT_USER_KEY = 'currentUser';
+  private static ADMIN_ADDRESS = '0x65254408b633bcac43ec5c4c2c538e86893af113';
 
-export const UserService = {
-  saveUser: (username: string, password: string, evmAddress: string, xrplAddress: string, isAdmin: boolean = false) => {
-    const users = JSON.parse(sessionStorage.getItem(`${STORAGE_PREFIX}users`) || '{}');
+  static getAllUsers(): Record<string, User> {
+    const usersJson = localStorage.getItem(this.USERS_KEY);
+    console.log("Raw users from localStorage:", usersJson);
     
-    users[username] = {
+    let users = {};
+    try {
+      users = usersJson ? JSON.parse(usersJson) : {};
+      console.log("Successfully parsed users:", users);
+    } catch (error) {
+      console.error("Error parsing users from localStorage:", error);
+      localStorage.setItem(this.USERS_KEY, JSON.stringify({}));
+    }
+    
+    return users;
+  }
+
+  static saveUser(
+    username: string,
+    password: string,
+    evmAddress: string,
+    xrplAddress: string
+  ): User {
+    console.log("Saving new user:", { username, evmAddress, xrplAddress });
+    
+    const users = this.getAllUsers();
+    const newUser = {
       username,
       password,
       evmAddress,
       xrplAddress,
-      isAdmin
+      isAdmin: false
     };
 
-    sessionStorage.setItem(`${STORAGE_PREFIX}users`, JSON.stringify(users));
-    sessionStorage.setItem(`${STORAGE_PREFIX}currentUser`, JSON.stringify(users[username]));
+    users[username] = newUser;
+    console.log("Updated users object:", users);
     
-    return users[username];
-  },
+    // Sauvegarder dans le localStorage
+    localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
+    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(newUser));
+    
+    console.log("User saved successfully");
+    return newUser;
+  }
 
-  getCurrentUser: (): User | null => {
-    const currentUser = sessionStorage.getItem(`${STORAGE_PREFIX}currentUser`);
-    return currentUser ? JSON.parse(currentUser) : null;
-  },
-
-  getUser: (username: string): User | null => {
-    const users = JSON.parse(sessionStorage.getItem(`${STORAGE_PREFIX}users`) || '{}');
+  static getUser(username: string): User | null {
+    const users = this.getAllUsers();
     return users[username] || null;
-  },
+  }
 
-  getAllUsers: () => {
-    return JSON.parse(sessionStorage.getItem(`${STORAGE_PREFIX}users`) || '{}');
-  },
+  static getUserByEvmAddress(evmAddress: string): User | null {
+    console.log("Searching for EVM address:", evmAddress);
+    
+    // Récupérer tous les utilisateurs
+    const users = this.getAllUsers();
+    console.log("All users in storage:", users);
+    
+    // Convertir l'adresse recherchée en minuscules
+    const searchAddress = evmAddress.toLowerCase();
+    console.log("Normalized search address:", searchAddress);
+    
+    // Chercher l'utilisateur
+    const user = Object.values(users).find(u => {
+      const storedAddress = u.evmAddress.toLowerCase();
+      console.log("Comparing with stored address:", storedAddress);
+      return storedAddress === searchAddress;
+    });
+    
+    if (user) {
+      console.log("Found matching user:", user);
+    } else {
+      console.log("No matching user found");
+      // Afficher toutes les adresses stockées pour le débogage
+      const storedAddresses = Object.values(users).map(u => u.evmAddress.toLowerCase());
+      console.log("All stored addresses:", storedAddresses);
+    }
+    
+    return user || null;
+  }
 
-  login: (username: string, password: string): User => {
-    const users = JSON.parse(sessionStorage.getItem(`${STORAGE_PREFIX}users`) || '{}');
+  static getCurrentUser(): User | null {
+    const currentUser = localStorage.getItem(this.CURRENT_USER_KEY);
+    return currentUser ? JSON.parse(currentUser) : null;
+  }
+
+  static login(username: string, password: string): User {
+    const users = this.getAllUsers();
     const user = users[username];
 
     if (!user || user.password !== password) {
       throw new Error("Invalid username or password");
     }
 
-    sessionStorage.setItem(`${STORAGE_PREFIX}currentUser`, JSON.stringify(user));
+    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
     return user;
-  },
+  }
 
-  logout: () => {
-    sessionStorage.removeItem(`${STORAGE_PREFIX}currentUser`);
-  },
+  static logout(): void {
+    localStorage.removeItem(this.CURRENT_USER_KEY);
+  }
 
-  // Initialiser l'admin s'il n'existe pas
-  initializeAdmin: () => {
-    const users = JSON.parse(sessionStorage.getItem(`${STORAGE_PREFIX}users`) || '{}');
+  static initializeAdmin(): void {
+    const users = this.getAllUsers();
     
     if (!users['admin']) {
       const adminUser = {
         username: 'admin',
         password: 'admin',
-        evmAddress: '0x65254408b633bcaC43eC5c4c2C538e86893af113',
+        evmAddress: this.ADMIN_ADDRESS,
         xrplAddress: 'rsnxpfwwWs6fVNaPVhGdKFBAukTPmC6NP5',
         isAdmin: true
       };
 
       users['admin'] = adminUser;
-      sessionStorage.setItem(`${STORAGE_PREFIX}users`, JSON.stringify(users));
+      localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
     }
   }
-}; 
+} 

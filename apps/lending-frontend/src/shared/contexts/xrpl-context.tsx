@@ -27,20 +27,29 @@ export const XRPLProvider: FC<Props> = ({ children }) => {
       const newClient = new Client(DEVNET_WSS);
       await newClient.connect();
 
-      const response = await newClient.request({
-        command: "account_info",
-        account: address,
-        ledger_index: "validated"
-      });
-
-      await newClient.disconnect();
-      
-      if (response?.result?.account_data?.Balance) {
-        const balance = (Number(response.result.account_data.Balance) / 1000000).toString();
-        setXRPBalance(balance);
-        return balance;
+      try {
+        const response = await newClient.request({
+          command: "account_info",
+          account: address,
+          ledger_index: "validated"
+        });
+        
+        await newClient.disconnect();
+        
+        if (response?.result?.account_data?.Balance) {
+          const balance = (Number(response.result.account_data.Balance) / 1000000).toString();
+          setXRPBalance(balance);
+          return balance;
+        }
+        return "0";
+      } catch (error: any) {
+        // Si le compte n'est pas trouvé, on retourne simplement 0
+        if (error.message && error.message.includes("Account not found")) {
+          setXRPBalance("0");
+          return "0";
+        }
+        throw error;
       }
-      return "0";
     } catch (error) {
       console.error("Failed to get XRP balance:", error);
       return "0";

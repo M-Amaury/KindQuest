@@ -1,7 +1,6 @@
 import { createContext, FC, ReactNode, useContext, useState, useEffect } from "react";
-import { Wallet } from "ethers";
-import { Wallet as XrplWallet } from "xrpl";
 import { UserService } from '../services/user.service';
+import { AuthService } from '../../services/auth.service';
 
 export type User = {
   username: string;
@@ -25,15 +24,6 @@ type Props = {
   children: ReactNode;
 };
 
-// Fonction pour générer une adresse XRPL valide
-const generateXRPLWallet = () => {
-  const wallet = XrplWallet.generate();
-  return {
-    address: wallet.address,
-    seed: wallet.seed
-  };
-};
-
 export const UserProvider: FC<Props> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => UserService.getCurrentUser());
 
@@ -44,37 +34,25 @@ export const UserProvider: FC<Props> = ({ children }) => {
 
   const registerUser = async (username: string, password: string) => {
     try {
+      console.log("Starting user registration in UserContext...");
+      
       // Vérifier si l'utilisateur existe déjà
       const existingUser = UserService.getUser(username);
       if (existingUser) {
         throw new Error("Username already taken");
       }
 
-      // Générer une nouvelle adresse EVM
-      const evmWallet = Wallet.createRandom();
-      const evmAddress = evmWallet.address;
+      // Appeler le service d'authentification pour l'inscription
+      console.log("Calling AuthService.register...");
+      const newUser = await AuthService.register({ username, password });
+      console.log("AuthService.register completed:", newUser);
 
-      // Générer une nouvelle adresse XRPL valide
-      const xrplWallet = generateXRPLWallet();
-      const xrplAddress = xrplWallet.address;
-
-      // Créer et sauvegarder l'utilisateur
-      const newUser = UserService.saveUser(
-        username,
-        password,
-        evmAddress,
-        xrplAddress
-      );
-      
+      // Définir l'utilisateur directement à partir du résultat
       setUser(newUser);
-
-      console.log("Created user with addresses:", {
-        evm: evmAddress,
-        xrpl: xrplAddress
-      });
+      console.log("User registration completed successfully");
 
     } catch (error) {
-      console.error("Failed to register user:", error);
+      console.error("Registration failed in UserContext:", error);
       throw error;
     }
   };

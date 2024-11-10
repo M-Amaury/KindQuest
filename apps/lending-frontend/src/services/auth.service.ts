@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { ethers } from 'ethers';
-import { Client } from 'xrpl';
-
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.VITE_SUPABASE_ANON_KEY!
-);
+import { Wallet } from "xrpl";
+import { UserService } from './user.service';
 
 export interface UserCredentials {
     username: string;
@@ -14,69 +9,82 @@ export interface UserCredentials {
 
 export class AuthService {
     private static async generateWallets() {
-        // Générer une adresse EVM
-        const evmWallet = ethers.Wallet.createRandom();
+        console.log("=== Starting wallet generation process ===");
         
-        // Générer une adresse XRPL
-        const xrplClient = new Client("wss://s.altnet.rippletest.net:51233");
-        await xrplClient.connect();
-        const xrplWallet = xrplClient.createWallet();
-        await xrplClient.disconnect();
+        try {
+            // Générer une adresse EVM
+            const evmWallet = ethers.Wallet.createRandom();
+            console.log("EVM wallet generated:", {
+                address: evmWallet.address
+            });
+            
+            // Générer le wallet XRPL
+            console.log("Generating XRPL wallet...");
+            const xrplWallet = Wallet.generate();
+            console.log("XRPL wallet generated:", {
+                address: xrplWallet.classicAddress
+            });
 
-        return {
-            evmAddress: evmWallet.address,
-            evmPrivateKey: evmWallet.privateKey,
-            xrplAddress: xrplWallet.address,
-            xrplSeed: xrplWallet.seed
-        };
+            return {
+                evmAddress: evmWallet.address,
+                evmPrivateKey: evmWallet.privateKey,
+                xrplAddress: xrplWallet.classicAddress,
+                xrplSeed: xrplWallet.seed
+            };
+
+        } catch (error) {
+            console.error("=== Wallet generation failed ===");
+            console.error("Error details:", error);
+            throw error;
+        }
     }
 
     static async register(credentials: UserCredentials) {
-        // Générer les wallets
-        const wallets = await this.generateWallets();
+        console.log("=== Starting registration process ===");
+        console.log("Registering user:", credentials.username);
+        
+        try {
+            console.log("Generating wallets...");
+            const wallets = await this.generateWallets();
+            console.log("Wallets generated:", {
+                evmAddress: wallets.evmAddress,
+                xrplAddress: wallets.xrplAddress
+            });
 
-        // Créer l'utilisateur dans Supabase
-        const { data, error } = await supabase.auth.signUp({
-            email: `${credentials.username}@kindquest.app`,
-            password: credentials.password,
-            options: {
-                data: {
-                    username: credentials.username,
-                    evmAddress: wallets.evmAddress,
-                    xrplAddress: wallets.xrplAddress
-                }
-            }
-        });
+            // Créer l'utilisateur dans le localStorage via UserService
+            const newUser = UserService.saveUser(
+                credentials.username,
+                credentials.password,
+                wallets.evmAddress,
+                wallets.xrplAddress
+            );
 
-        if (error) throw error;
+            console.log("User created successfully");
 
-        // Stocker les clés privées de manière sécurisée
-        // Note: Dans une vraie application, il faudrait une meilleure gestion des clés privées
-        localStorage.setItem(`${credentials.username}_keys`, JSON.stringify({
-            evmPrivateKey: wallets.evmPrivateKey,
-            xrplSeed: wallets.xrplSeed
-        }));
+            // Stocker les clés privées
+            localStorage.setItem(`${credentials.username}_keys`, JSON.stringify({
+                evmPrivateKey: wallets.evmPrivateKey,
+                xrplSeed: wallets.xrplSeed
+            }));
+            console.log("Wallet keys stored in localStorage");
 
-        return data;
+            return newUser;
+        } catch (error) {
+            console.error("=== Registration process failed ===");
+            console.error("Error details:", error);
+            throw error;
+        }
     }
 
     static async login(credentials: UserCredentials) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: `${credentials.username}@kindquest.app`,
-            password: credentials.password
-        });
-
-        if (error) throw error;
-        return data;
+        return UserService.login(credentials.username, credentials.password);
     }
 
     static async logout() {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        UserService.logout();
     }
 
-    static async getCurrentUser() {
-        const { data: { user } } = await supabase.auth.getUser();
-        return user;
+    static getCurrentUser() {
+        return UserService.getCurrentUser();
     }
 } 
