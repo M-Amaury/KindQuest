@@ -2,9 +2,11 @@ import { theme } from "@chakra-ui/pro-theme"
 import { ChakraProvider, extendTheme } from "@chakra-ui/react"
 import "@fontsource-variable/open-sans"
 import "@fontsource-variable/spline-sans"
-import { AppLayout } from "./app-layouts"
-import { HomePage } from "./pages"
-import { Web3Provider } from "./shared/contexts"
+import { RouterProvider } from "react-router-dom"
+import { Web3Provider } from "./shared/contexts/web3-context"
+import { XRPLProvider } from "./shared/contexts/xrpl-context"
+import { UserProvider } from "./shared/contexts/user-context"
+import { router } from "./routes"
 
 export const App = () => {
   const proTheme = extendTheme(theme)
@@ -16,11 +18,13 @@ export const App = () => {
 
   return (
     <ChakraProvider theme={myTheme}>
-      <Web3Provider>
-        <AppLayout>
-          <HomePage />
-        </AppLayout>
-      </Web3Provider>
+      <UserProvider>
+        <XRPLProvider>
+          <Web3Provider>
+            <RouterProvider router={router} />
+          </Web3Provider>
+        </XRPLProvider>
+      </UserProvider>
     </ChakraProvider>
   )
 }

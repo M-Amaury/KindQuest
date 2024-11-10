@@ -1,37 +1,33 @@
-import fs from "fs"
-import { ethers } from "hardhat"
-import path from "path"
+import { ethers } from "hardhat";
 
 async function main() {
-  const contract = await ethers.deployContract("SimpleBank")
+  // Déploiement du KindToken uniquement
+  const KindToken = await ethers.getContractFactory("KindToken");
+  const kindToken = await KindToken.deploy();
+  await kindToken.waitForDeployment();
+  console.log("KindToken deployed to:", await kindToken.getAddress());
 
-  await contract.waitForDeployment()
+  // Sauvegarder l'adresse du contrat
+  const addresses = {
+    kindToken: await kindToken.getAddress()
+  };
 
-  console.log(`SimpleBank deployed to ${contract.target}`)
-
-  // We also save the contract details in the frontend directory
-  saveFrontendFiles(contract)
-}
-
-function saveFrontendFiles(contract: any) {
-  const contractsDir = path.join(__dirname, "../..", "lending-frontend", "src", "contracts")
+  // Écrire l'adresse dans un fichier
+  const fs = require("fs");
+  const path = require("path");
+  const contractsDir = path.join(__dirname, "..", "..", "lending-frontend", "src", "contracts");
 
   if (!fs.existsSync(contractsDir)) {
-    fs.mkdirSync(contractsDir)
+    fs.mkdirSync(contractsDir, { recursive: true });
   }
 
-  const typechainDir = path.join(__dirname, "..", "typechain-types")
-  fs.cpSync(typechainDir, contractsDir, { recursive: true })
-  console.log("Copied content of typechain-types into frontend directory")
-
   fs.writeFileSync(
-    path.join(contractsDir, "contract-address.json"),
-    JSON.stringify({ address: contract.target }, undefined, 2),
-  )
-  console.log("Contract address written in contract-address.json in the frontend")
+    path.join(contractsDir, "contract-addresses.json"),
+    JSON.stringify(addresses, undefined, 2)
+  );
 }
 
 main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+  console.error(error);
+  process.exitCode = 1;
+});

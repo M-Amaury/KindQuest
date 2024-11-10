@@ -1,14 +1,14 @@
-import { Header } from "./header"
+import { Box } from "@chakra-ui/react";
+import { FC, ReactNode } from "react";
 
-type AppLayoutProps = {
-  children: React.ReactNode
-}
+type Props = {
+  children: ReactNode;
+};
 
-export const AppLayout = ({ children }: AppLayoutProps) => {
+export const AppLayout: FC<Props> = ({ children }) => {
   return (
-    <>
-      <Header />
-      <>{children}</>
-    </>
-  )
-}
+      <Box as="main" py={8}>
+        {children}
+      </Box>
+  );
+};

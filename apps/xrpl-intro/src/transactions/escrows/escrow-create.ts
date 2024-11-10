@@ -1,7 +1,7 @@
 import color from "colors"
-import { EscrowCreate } from "xrpl"
-import { getXrplClient } from "../../client"
-import { TransactionPropsForSingleSign } from "../../models"
+import { EscrowCreate, xrpToDrops } from "xrpl"
+import { getXrplClient } from "../client"
+import { TransactionPropsForSingleSign } from "../models"
 
 const client = getXrplClient()
 
@@ -20,5 +20,26 @@ export const createEscrow = async ({
   console.log(color.bold("******* LET'S CREATE AN ESCROW *******"))
   console.log()
 
-  // todo: code the function, don't forget to convert the Amount from "txn" with xrpToDrops
+  let { Amount, ...rest } = txn
+
+  if (typeof Amount === "string") {
+    Amount = xrpToDrops(Amount)
+  }
+
+  // Construct the base transaction
+  const transaction: EscrowCreate = {
+    TransactionType: "EscrowCreate",
+    Account: wallet.address,
+    Amount,
+    ...rest,
+  }
+
+  // Autofill transaction with additional fields, sign and submit
+  const response = await client.submitAndWait(transaction, { autofill: true, wallet })
+
+  if (showLogs) {
+    console.log(response)
+  }
+
+  return response
 }
